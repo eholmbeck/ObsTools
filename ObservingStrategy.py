@@ -262,8 +262,8 @@ class Plan:
 
 	# ===========================================
 	def print_plan(self, nights):
-		sys.stdout.write('\033[1A\033[1G\033[2K')
-		sys.stdout.write('\033[%s;1H'%(14+len(self.targets)))
+		sys.stdout.write('\033[2A\033[1G\033[2K')
+		sys.stdout.write('\033[%s;1H'%(13+len(self.targets)))
 		sys.stdout.write('\033[0J')
 
 		sunset, sunrise = self.sunset_sunrise().to_datetime()
@@ -288,15 +288,18 @@ class Plan:
 				sunset, sunrise = self.sunset_sunrise(night=nights).to_datetime()
 				print(header_fmt.format('', '{:02.0f}:{:02.0f}'.format(sunset.hour, sunset.minute), 'Civil Sunset', ''))
 		
+		print(header_fmt.format('', '{:02.0f}:{:02.0f}'.format(sunrise.hour, sunrise.minute), 'Civil Sunrise', ''))
+		print('-'*len(header))
 		print('\nWhat would you like to do?\n')
 		return nights
 		
 	# ===========================================
+	# TODO: split this up
 	def choose(self, choice):
 		break_flag = False
 		nights = 0
 		while type(choice) is str:
-			if choice.lower() not in 'ucpns':
+			if choice.lower() not in 'ucns':
 				try: choice = int(choice)-1
 				except: break
 
@@ -318,7 +321,7 @@ class Plan:
 	
 				self.plan.append([choice+1, int(self.times_hr[begin_exp]), self.times_hr[begin_exp]%1 * 60,
 							 	 self.targets[choice], exptime])
-				
+							
 			elif choice in 'uU':
 				try:
 					self.start_time -= TimeDelta(self.plan[-1][-1]+300.0, format='sec')
@@ -339,13 +342,10 @@ class Plan:
 				self.start_time = self.dusk
 				self.plan = []
 		
-			elif choice in 'pP':
-				nights = self.print_plan(nights)
-	
 			elif choice in 'nN':
 				self.plan.append([])
 				self.start_time = self.dusk
-				nights = self.print_plan(nights)
+				#nights = self.print_plan(nights)
 			
 			elif choice in 'sSaAeE':
 				sys.stdout.write('\033[1A')
@@ -392,6 +392,8 @@ class Plan:
 			else:
 				break
 	
+			night = self.print_plan(nights)
+
 			self.fig.canvas.draw()
 			plt.pause(0.001)
 	
