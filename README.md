@@ -13,7 +13,9 @@ For now, just a code for me to approximately plan my observing night.
   - Experiment with your targets' placement throughout the night to maximize your time efficiency
   - Add targets, undo, print, and even go on to the next consecutive night interactively
   - Prints an approximate observing plan based on your input
-  
+
+![Here is a demo image:](https://raw.githubusercontent.com/eholmbeck/ObsTools/main/data/planner_demo.png)
+
 ### How to use it:
 First install these:
   - `matplotlib`
