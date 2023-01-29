@@ -11,7 +11,7 @@ For now, just a code for me to approximately plan my observing night.
 ### What it gives:
   - A visibility plot of your targets that you can interact with on the command line
   - Experiment with your targets' placement throughout the night to maximize your time efficiency
-  - Add targets, undo, print, and even go on to the next consecutive night
+  - Add targets, undo, print, and even go on to the next consecutive night interactively
   - Prints an approximate observing plan based on your input
   
 ### How to use it:
