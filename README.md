@@ -22,9 +22,9 @@ First install these:
   - `timezonefinder`
   - `pytz`
   
-Then call the code with:
+Then call the planner with:
   `obs = Plan(site='lco', year=2023, month=1, day=28, targets=targets, exptimes=exptimes)`.
-  
-There is an example file included to show you how it works! 
+
+There is an example file included to show you how it works. Just call `python example.py`!
 
 **Disclaimer:** I haven't yet coded this to be a nice Python package, so you may have to contend with relative/full paths.
