@@ -256,7 +256,7 @@ class Plan:
 	def show_options(self):
 		fmt = '  {:<35}'
 		print(fmt.format('[#]: Add target number # to plan and plot'))
-		print(fmt.format('[p]: Print current plan')+fmt.format('[c]: Clear plan'))
+		print(fmt.format('[p]: Pad with time')+fmt.format('[c]: Clear plan'))
 		print(fmt.format('[u]: Undo')+fmt.format('[n]: Go to next night'))
 		print(fmt.format('[q]: Quit')+fmt.format('[s]: Save plan to file\n'))
 
@@ -269,7 +269,7 @@ class Plan:
 		sunset, sunrise = self.sunset_sunrise().to_datetime()
 
 		longest_string = max([len(target) for target in self.targets])		
-		header_fmt = '{:<2} | {:5} | {:<%s} | {:<8}' %(longest_string+2)
+		header_fmt = '{:>2} | {:5} | {:<%s} | {:<8}' %(longest_string+2)
 		header = header_fmt.format('#', 'UT', 'Star ID', 'Exp. (s)')
 		fmt = '{:>2.0f} | {:02.0f}:{:02.0f} | {:<%s} |{:>8.0f}' %(longest_string+2)
 		
@@ -279,9 +279,9 @@ class Plan:
 		print(header_fmt.format('', '{:02.0f}:{:02.0f}'.format(sunset.hour, sunset.minute), 'Civil Sunset', ''))
 		
 		for p in self.plan:
-			if len(p) != 0:
-				print(fmt.format(*p))
-			else:
+			if len(p) > 1 :
+				print(fmt.format(*p[:-1]))
+			elif len(p) == 0:
 				nights += 1
 				print(header_fmt.format('', '{:02.0f}:{:02.0f}'.format(sunrise.hour, sunrise.minute), 'Civil Sunrise', ''))
 				print('-'*len(header))
@@ -296,16 +296,91 @@ class Plan:
 	# ===========================================
 	# TODO: split this up
 	def choose(self, choice):
-		break_flag = False
 		nights = 0
+		next_night = False
 		while type(choice) is str:
-			if choice.lower() not in 'ucns':
+			if choice.lower() not in 'ucnsp':
 				try: choice = int(choice)-1
 				except: break
 
 				begin_exp = np.where(self.times_jd<=self.start_time.value)[0][-1]
 				self.start_time += TimeDelta(self.exptimes[choice]+300.0, format='sec').jd # Include a 5-minute delay
 				exptime = self.exptimes[choice]
+				end_exp = np.where(self.times_jd<=self.start_time.value)[0][-1]
+
+				if end_exp == len(self.times_jd)-1:
+					next_night = True
+					extra_time = (self.start_time-self.dawn).sec
+					self.start_time -= TimeDelta(extra_time, format='sec')
+					print('WARNING: {:} requires {:.0f}s more exposure past dawn!'.format(self.targets[choice], extra_time), end="\r")
+					end_exp = len(self.times_jd)
+					exptime -= extra_time
+				
+				self.plan.append([choice+1, int(self.times_hr[begin_exp]), self.times_hr[begin_exp]%1 * 60,
+							 	 self.targets[choice], exptime, self.start_time])
+				self.ax.plot(self.times_hr[begin_exp:end_exp], self.altitudes[choice][begin_exp:end_exp],
+							 label=self.targets[choice], color='C%i' %(len(self.plan)-nights-1))
+				self.ax.legend(loc='upper left', bbox_to_anchor=(1.1,1), handlelength=1.2, frameon=False)
+				
+				if not next_night: self.print_plan(nights)
+	
+							
+			elif choice in 'uU':
+				# We're at least removing one
+				rows_to_remove = 1
+				for last_row in range(1,len(self.plan)):
+					if self.plan[-last_row]==[]: rows_to_remove += 1
+					else: break
+				
+				nights -= rows_to_remove - 1
+				self.plan = self.plan[:-rows_to_remove]
+				try: self.start_time = self.plan[-1][-1]
+				except IndexError: self.start_time = self.dusk
+
+				# This needs to be done with some backends for some reason, otherwise the lines won't remove
+				self.ax.lines[len(self.plan)-nights].set_data([],[])
+				print(nights, len(self.plan))
+				self.ax.lines.pop()
+				self.print_plan(nights)
+
+			elif choice in 'cC':
+				for p in range(len(self.plan)-nights):
+					self.ax.lines[-1].set_data([],[])
+					self.ax.lines.pop()
+				self.start_time = self.dusk
+				self.plan = []
+				nights = self.print_plan(nights)
+		
+			elif choice in 'nN':
+				self.plan.append([])
+				self.start_time = self.dusk
+				nights = self.print_plan(nights)
+			
+			# Warning: won't work if there are no targets
+			# Also will not undo the padding, but will remove the last target + padding
+			elif choice in 'pP':
+				extra_time = float(input('How much time to add (in seconds)?: '))
+				broken = True
+				last = -1
+				while broken:
+					try:
+						self.start_time -= TimeDelta(self.plan[last][-2]+300.0, format='sec')
+						self.plan[last][-2] += extra_time
+						broken = False
+					except ValueError:
+						last -= 1
+				
+				self.ax.lines[-1].set_data([],[])
+				self.ax.lines.pop()
+				
+				choice = self.plan[-1][0]+last
+				
+				# First, undo the last one
+				begin_exp = np.where(self.times_jd<=self.start_time.value)[0][-1]
+				exptime = self.exptimes[choice] + extra_time
+				
+				# Then change to new start time
+				self.start_time += TimeDelta(exptime + 300.0, format='sec')
 				try: end_exp = np.where(self.times_jd>=self.start_time.value)[0][0]
 				except:
 					extra_time = (self.start_time-self.dawn).sec
@@ -314,38 +389,12 @@ class Plan:
 					end_exp = len(self.times_jd)-1
 					exptime -= extra_time
 					break_flag = True
-				
+
 				self.ax.plot(self.times_hr[begin_exp:end_exp], self.altitudes[choice][begin_exp:end_exp],
-							 label=self.targets[choice], color='C%i' %(len(self.plan)))
+							 label=self.targets[choice], color='C%i' %(len(self.plan)-nights-1))
 				self.ax.legend(loc='upper left', bbox_to_anchor=(1.1,1), handlelength=1.2, frameon=False)
+				
 	
-				self.plan.append([choice+1, int(self.times_hr[begin_exp]), self.times_hr[begin_exp]%1 * 60,
-							 	 self.targets[choice], exptime])
-							
-			elif choice in 'uU':
-				try:
-					self.start_time -= TimeDelta(self.plan[-1][-1]+300.0, format='sec')
-					self.plan = self.plan[:-1]
-				except IndexError:
-					nights -= 1
-					self.plan = self.plan[:-2]
-					self.start_time -= TimeDelta(self.plan[-1][-1]+300.0, format='sec')
-
-				# This needs to be done with some backends for some reason, otherwise the lines won't remove
-				self.ax.lines[len(self.plan)-nights].set_data([],[])
-				self.ax.lines.pop()
-
-			elif choice in 'cC':
-				for p in range(len(self.plan)-nights):
-					self.ax.lines[-1].set_data([],[])
-					self.ax.lines.pop()
-				self.start_time = self.dusk
-				self.plan = []
-		
-			elif choice in 'nN':
-				self.plan.append([])
-				self.start_time = self.dusk
-				#nights = self.print_plan(nights)
 			
 			elif choice in 'sSaAeE':
 				sys.stdout.write('\033[1A')
@@ -355,7 +404,7 @@ class Plan:
 			elif choice in 'sS':
 				file_name = input('File name to save to: ')
 			
-			# Not working yet
+			# Not implemented yet
 			elif choice in 'aA':
 				targets = input('Add targets either as a (Pythonic) list of strings or a single target string:\n')
 				try: exec('targets=%s' %targets)
@@ -369,7 +418,7 @@ class Plan:
 					
 				self.refresh_screen(targets, exptimes)
 				
-			# Not working yet
+			# Not implemented yet
 			elif choice in 'eE':
 				targets = input('New target list (blank for same):\n')
 				if targets != '':
@@ -391,9 +440,12 @@ class Plan:
 
 			else:
 				break
-	
-			night = self.print_plan(nights)
-
+						
+			if next_night:
+				next_night = False
+				choice = 'n'
+				continue
+			
 			self.fig.canvas.draw()
 			plt.pause(0.001)
 	
