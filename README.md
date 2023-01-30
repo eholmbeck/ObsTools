@@ -2,6 +2,11 @@
 
 For now, just a code for me to approximately plan my observing night.
 
+---
+
+**Disclaimer:** Error handling is very premature. The program may quit suddenly if the wrong input is selected. Please let me know about these, and I will eventually code in all the right catches. 
+
+---
 ### What it needs:
   - A list of targets (Simbad-resolvable names)
   - Corresponding list of exposure times (stay tuned for exposure time calculators)
@@ -28,5 +33,3 @@ Then call the planner with:
   `obs = Plan(site='lco', year=2023, month=1, day=28, targets=targets, exptimes=exptimes)`.
 
 There is an example file included to show you how it works. Just call `python example.py`!
-
-**Disclaimer:** I haven't yet coded this to be a nice Python package, so you may have to contend with relative/full paths.
