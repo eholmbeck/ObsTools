@@ -17,7 +17,7 @@ from pytz import timezone
 # ===============================================
 
 class Plan:
-	def __init__(self, site='lco', year=2000, month=1, day=1, targets=[], exptimes=[]):
+	def __init__(self, site='lco', year=2000, month=1, day=1, targets=[], exptimes=[], coords=[]):
 		self.site = self.get_site(site)
 		self.year = year
 		self.month= month
@@ -27,10 +27,10 @@ class Plan:
 		self.start_UT = None
 		self.timezone_offset = None
 		
-		self.welcome(targets, exptimes)
+		self.welcome(targets, exptimes, coords)
 		
 	# ===========================================
-	def welcome(self, targets, exptimes):
+	def welcome(self, targets, exptimes, coords):
 		sys.stdout.write('\033[2J\033[H')
 		self.start()
 		
@@ -47,7 +47,7 @@ class Plan:
 		self.targets = []
 		self.exptimes = []
 		self.altitudes = []
-		self.add_targets(targets)
+		self.add_targets(targets, coords)
 		self.add_exptimes(exptimes)
 				
 		print('Target list and exposure times:')
@@ -63,6 +63,29 @@ class Plan:
 		self.plan = []
 		self.choose(choice)
 		
+	# ===========================================
+	# Sets some helpful variables
+	def start(self, tres=100):
+		self.tz = self.find_timezone()
+	
+		# Try at 6:00 pm in UT; find the offset, then reset the UT time
+		run_start = {'year': self.year, 'month': self.month, 'day': self.day, 'hour': 18}
+		time = Time(run_start, format='ymdhms', scale='utc')
+		time_local = time.to_datetime(timezone=self.tz)
+		self.timezone_offset = time_local.utcoffset()
+		self.start_UT = self.UT_to_local(time) # Not a conversion, but a correction here
+		self.start_local = self.start_UT.to_datetime(timezone=self.tz)
+		
+		self.dusk, self.dawn = self.twilight(-18)
+		self.naut_dusk, self.naut_dawn = self.twilight(-12)
+		
+		self.times_jd = np.linspace(self.dusk.value, self.dawn.value, tres)
+		night_length = (self.dawn - self.dusk).sec/3600.
+
+		dusk_dt = self.dusk.to_datetime()
+		t0 = dusk_dt.hour + dusk_dt.minute/60. + dusk_dt.second/3600.
+		self.times_hr = np.linspace(t0, t0+night_length, tres)		
+	
 	# ===========================================
 	def refresh_screen(self, targets, exptimes):
 		sys.stdout.write('\033[2J\033[H')
@@ -100,29 +123,6 @@ class Plan:
 	def local_to_UT(self, local_time):
 		return local_time + TimeDelta(self.timezone_offset.days*24*3600 + self.timezone_offset.seconds, format='sec')
 		
-	# ===========================================
-	# Sets some helpful variables
-	def start(self, tres=100):
-		self.tz = self.find_timezone()
-	
-		# Try at 6:00 pm in UT; find the offset, then reset the UT time
-		run_start = {'year': self.year, 'month': self.month, 'day': self.day, 'hour': 18}
-		time = Time(run_start, format='ymdhms', scale='utc')
-		time_local = time.to_datetime(timezone=self.tz)
-		self.timezone_offset = time_local.utcoffset()
-		self.start_UT = self.UT_to_local(time) # Not a conversion, but a correction here
-		self.start_local = self.start_UT.to_datetime(timezone=self.tz)
-		
-		self.dusk, self.dawn = self.twilight(-18)
-		self.naut_dusk, self.naut_dawn = self.twilight(-12)
-		
-		self.times_jd = np.linspace(self.dusk.value, self.dawn.value, tres)
-		night_length = (self.dawn - self.dusk).sec/3600.
-
-		dusk_dt = self.dusk.to_datetime()
-		t0 = dusk_dt.hour + dusk_dt.minute/60. + dusk_dt.second/3600.
-		self.times_hr = np.linspace(t0, t0+night_length, tres)		
-	
 	# ===========================================
 	def twilight(self, alt=-18, night=0):
 		from scipy.optimize import fsolve
@@ -206,16 +206,8 @@ class Plan:
 
 
 	# ===========================================
-	def add_track(self, target):
-		try:
-			coords = SkyCoord.from_name(target)
-		except name_resolve.NameResolveError:
-			coord_str = input("Object %s not found in Simbad. Enter coordinates now (sexagesimal):\n" %target)
-			coords = SkyCoord(coord_str, unit=(u.hourangle, u.deg))
-			sys.stdout.write('\033[1A\033[1G\033[2K')
-			sys.stdout.write('\033[1A\033[1G\033[2K')
-
-		altaz = [coords.transform_to(AltAz(obstime=Time(time, format='jd'),location=self.site))\
+	def add_track(self, target, coord):
+		altaz = [coord.transform_to(AltAz(obstime=Time(time, format='jd'),location=self.site))\
 				 for time in self.times_jd]
 		
 		altitudes = np.array([alt.alt.value for alt in altaz])
@@ -230,15 +222,27 @@ class Plan:
 		plt.pause(0.001)
 
 	# ===========================================
-	def add_targets(self, target_list):
+	def add_targets(self, target_list, coords):
 		if type(target_list) is not list:
 			target_list = list(target_list)
-		for target in target_list:
-			self.add_target(target)
+		if type(coords) is not list:
+			coords = list(coords)
+		for ti,target in enumerate(target_list):
+			try:
+				coord = SkyCoord(coords[ti], unit=(u.hourangle, u.deg))
+			except IndexError:
+				try: coord = SkyCoord.from_name(target)
+				except name_resolve.NameResolveError:
+					coord_str = input("Object %s not found in Simbad. Enter coordinates now (sexagesimal):\n" %target)
+					coord = SkyCoord(coord_str, unit=(u.hourangle, u.deg))
+					sys.stdout.write('\033[1A\033[1G\033[2K')
+					sys.stdout.write('\033[1A\033[1G\033[2K')
+
+			self.add_target(target, coord)
 	
-	def add_target(self, single_target):
+	def add_target(self, single_target, coord):
 		self.targets.append(single_target)
-		self.add_track(single_target)
+		self.add_track(single_target, coord)
 	
 	def add_exptimes(self, times_list):
 		if type(times_list) is not list:
