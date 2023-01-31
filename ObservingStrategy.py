@@ -2,12 +2,18 @@ import matplotlib.pyplot as plt
 import numpy as np
 import sys
 
-from astropy.coordinates import AltAz, EarthLocation, SkyCoord, get_sun
+from astropy.coordinates import AltAz, EarthLocation, SkyCoord, get_sun, name_resolve
+from astropy import units as u
 from astropy.time import Time, TimeDelta
 from timezonefinder import TimezoneFinder
 from pytz import timezone
 
 # ===============================================
+# TODO:
+# Fix padding/undo
+# Add targets
+# Save output
+# Multiple nights - recolor?
 # ===============================================
 
 class Plan:
@@ -201,7 +207,14 @@ class Plan:
 
 	# ===========================================
 	def add_track(self, target):
-		coords = SkyCoord.from_name(target)
+		try:
+			coords = SkyCoord.from_name(target)
+		except name_resolve.NameResolveError:
+			coord_str = input("Object %s not found in Simbad. Enter coordinates now (sexagesimal):\n" %target)
+			coords = SkyCoord(coord_str, unit=(u.hourangle, u.deg))
+			sys.stdout.write('\033[1A\033[1G\033[2K')
+			sys.stdout.write('\033[1A\033[1G\033[2K')
+
 		altaz = [coords.transform_to(AltAz(obstime=Time(time, format='jd'),location=self.site))\
 				 for time in self.times_jd]
 		
@@ -254,7 +267,7 @@ class Plan:
 
 	# ===========================================
 	def show_options(self):
-		fmt = '  {:<35}'
+		fmt = '  {:<27}'
 		print(fmt.format('[#]: Add target number # to plan and plot'))
 		print(fmt.format('[p]: Pad with time')+fmt.format('[c]: Clear plan'))
 		print(fmt.format('[u]: Undo')+fmt.format('[n]: Go to next night'))
