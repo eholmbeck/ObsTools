@@ -8,7 +8,7 @@ For now, just a code for me to approximately plan my observing night.
 
 ---
 ### What it needs:
-  - A list of targets (Simbad-resolvable names) OR a target list and coordinate list (sexagesimal, string-formatted)
+  - A list of targets (Simbad-resolvable names) **OR** a target list and coordinate list (sexagesimal, string-formatted)
   - Corresponding list of exposure times (stay tuned for exposure time calculators)
   - Site location or name, e.g., 'lco'
   - Year, month, and day (local) that your observations start
