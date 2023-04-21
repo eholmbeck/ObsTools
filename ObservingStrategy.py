@@ -140,7 +140,7 @@ class Plan:
 
 	# ===========================================
 	def sunset_sunrise(self, night=0):
-		return self.twilight(alt=-2.25, night=night)
+		return self.twilight(alt=-18, night=night)
 	
 	# ===========================================
 	# ===========================================
@@ -154,6 +154,7 @@ class Plan:
 		xticks = np.arange(int(self.times_hr[0])-1, int(self.times_hr[-1])+2)
 		self.ax.set_xlim(self.times_hr[0]-1, self.times_hr[-1]+1)
 		self.ax.set_xticks(xticks)
+		self.ax.set_xticklabels([r'${:.0f}$'.format(ut_tick%24) for ut_tick in xticks])
 		
 		self.ax.set_ylim(0,90)
 		self.ax.set_yticks(range(0,91,10))
@@ -297,6 +298,7 @@ class Plan:
 		
 		for p in self.plan:
 			if len(p) > 1 :
+				p[1] = p[1]%24
 				print(fmt.format(*p[:-1]))
 			elif len(p) == 0:
 				nights += 1
