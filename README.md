@@ -25,7 +25,9 @@ For now, just a code for me to approximately plan my observing night.
 First install these:
   - `matplotlib`
   - `numpy`
+  - `scipy`
   - `astropy` (there may be a version problem here)
+  - `astroquery`
   - `timezonefinder`
   - `pytz`
   
