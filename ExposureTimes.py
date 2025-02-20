@@ -4,10 +4,9 @@ from scipy import integrate
 # ===========================================
 # MIKE Exposure Time Calculator
 #
-# This code is still under development! I often have to multiply by exptimes by 3
+# This code is still under development! I often have to multiply exptimes by 3
 # ===========================================
 
-# Just an interpolation that I don't want to recalculate every time
 MIKE_mag = None
 
 # Find fraction of light that's actually in the slit.
@@ -17,7 +16,8 @@ def gauss2d(slit, seeing, slit_length=5.0):
 	f = lambda y, x: np.exp(-(x**2 + y**2)/(2.*(sigma**2)))
 	norm = 2.*np.pi*(sigma**2)
 	return integrate.dblquad(f, -slit/2., slit/2, lambda x: -slit_length/2.0, lambda x: slit_length/2.0)[0]/norm
-	
+
+# I think I got this file from the LCO site?
 def read_in_efficiencies():
 	import os
 	from scipy.interpolate import interp1d
@@ -26,6 +26,7 @@ def read_in_efficiencies():
 	MIKE_mag = interp1d(MIKE_EFF_wave,MIKE_EFF_mag)
 	return MIKE_mag
 
+# This calculation is largely based on Rebecca Bernstein's calculator on the LCO website.
 def MIKE_etc(snr, centroid, vmag, slit, seeing=0.5, binning=1.0, gain=0.47, **kwargs):
 	# Reset globals so we don't have to do this every time
 	global MIKE_mag
